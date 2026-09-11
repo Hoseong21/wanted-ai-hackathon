@@ -1,0 +1,17 @@
+# core
+python-dotenv
+pydantic
+
+# LLM / agent orchestration
+langchain
+langgraph
+langchain-openai
+
+# RAG
+chromadb
+
+# app
+streamlit
+
+# db
+# sqlite3 is in the Python standard library

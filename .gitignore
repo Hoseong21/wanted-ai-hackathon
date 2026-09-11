@@ -1,0 +1,17 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# env
+.env
+
+# vector store persist dir
+src/rag/vectorstore/
+
+# sqlite db
+*.db
+
+# os
+.DS_Store

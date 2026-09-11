@@ -1,0 +1,17 @@
+[
+  {"id": "P001", "name": "맥북 에어 M3", "category": "노트북", "price": 1690000, "vendor": "Apple", "spec": "13인치 / 8GB / 256GB", "in_stock": true},
+  {"id": "P002", "name": "LG 그램 14", "category": "노트북", "price": 1450000, "vendor": "LG", "spec": "14인치 / 16GB / 512GB", "in_stock": true},
+  {"id": "P003", "name": "델 27인치 QHD 모니터", "category": "모니터", "price": 320000, "vendor": "Dell", "spec": "27인치 / QHD / IPS", "in_stock": true},
+  {"id": "P004", "name": "애플 스튜디오 디스플레이", "category": "모니터", "price": 2390000, "vendor": "Apple", "spec": "27인치 / 5K", "in_stock": true},
+  {"id": "P005", "name": "로지텍 MX Keys", "category": "주변기기", "price": 129000, "vendor": "Logitech", "spec": "무선 키보드", "in_stock": true},
+  {"id": "P006", "name": "로지텍 MX Master 3S", "category": "주변기기", "price": 99000, "vendor": "Logitech", "spec": "무선 마우스", "in_stock": true},
+  {"id": "P007", "name": "무선 이어폰", "category": "주변기기", "price": 259000, "vendor": "Sony", "spec": "노이즈캔슬링", "in_stock": true},
+  {"id": "P008", "name": "JetBrains All Products Pack", "category": "소프트웨어", "price": 289000, "vendor": "JetBrains", "spec": "1인 연간 라이선스", "in_stock": true},
+  {"id": "P009", "name": "Slack 프리미엄 플랜", "category": "소프트웨어", "price": 132000, "vendor": "Slack", "spec": "1인 연간", "in_stock": true},
+  {"id": "P010", "name": "A4 복사용지 1박스", "category": "사무용품", "price": 25000, "vendor": "모나미", "spec": "500매 x 10", "in_stock": true},
+  {"id": "P011", "name": "사무용 의자", "category": "사무용품", "price": 450000, "vendor": "시디즈", "spec": "인체공학 의자", "in_stock": true},
+  {"id": "P012", "name": "리퍼비시 아이패드", "category": "기타", "price": 780000, "vendor": "Apple(리퍼)", "spec": "10.9인치 / 리퍼비시", "in_stock": true},
+  {"id": "P013", "name": "스타벅스 기프트카드 5만원권", "category": "금지품목", "price": 50000, "vendor": "스타벅스", "spec": "모바일 기프트카드", "in_stock": true},
+  {"id": "P014", "name": "와인 선물세트", "category": "금지품목", "price": 120000, "vendor": "-", "spec": "레드와인 2병 세트", "in_stock": true},
+  {"id": "P015", "name": "팀 다과세트", "category": "복지", "price": 80000, "vendor": "-", "spec": "워크샵용 스낵 박스", "in_stock": true}
+]
