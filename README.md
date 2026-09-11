@@ -1,4 +1,4 @@
-# FlowGuard — 검증 가능한 Enterprise AI Agent
+# AfA(Agent for Aengt) — 검증 가능한 Enterprise AI Agent
 
 RAG 기반 사내 구매 업무 에이전트에 Grounding Check / Tool Call Check / Policy Check
 검증 계층을 추가하여, "정답을 내는 에이전트"가 아니라 "검증 가능하게 정답을 내는 에이전트"를
