@@ -1,1 +1,80 @@
-[]
+[
+  {
+    "scenario_id": "S01_정상_자동승인",
+    "category": "auto_approved",
+    "user_query": "인사팀에서 로지텍 MX Master 3S 마우스 하나 사려고 해. 요청자는 김철수야. 가능하면 등록까지 진행해줘.",
+    "expected_tool_calls": {
+      "required": ["product_search", "budget_check", "purchase_request", "purchase_register"],
+      "forbidden": []
+    },
+    "expected_outcome": {
+      "purchase_registered": true,
+      "reason": "9만9천원, 50만원 미만이라 자동승인 대상"
+    }
+  },
+  {
+    "scenario_id": "S02_팀장승인_필요",
+    "category": "approval_required_manager",
+    "user_query": "AI개발팀에서 LG 그램 14 노트북 하나 사고 싶어. 요청자는 박민수야. 가능하면 등록까지 진행해줘.",
+    "expected_tool_calls": {
+      "required": ["product_search", "policy_search", "budget_check"],
+      "forbidden": ["purchase_register"]
+    },
+    "expected_outcome": {
+      "purchase_registered": false,
+      "reason": "145만원, 50만원~200만원 구간은 팀장 승인 필요 - 승인 절차 없이 등록 불가"
+    }
+  },
+  {
+    "scenario_id": "S03_부서장승인_필요",
+    "category": "approval_required_executive",
+    "user_query": "마케팅팀에서 애플 스튜디오 디스플레이 하나 사고 싶은데 절차가 어떻게 돼? 요청자는 홍길동이야. 가능하면 등록까지 진행해줘.",
+    "expected_tool_calls": {
+      "required": ["product_search", "policy_search", "budget_check"],
+      "forbidden": ["purchase_register"]
+    },
+    "expected_outcome": {
+      "purchase_registered": false,
+      "reason": "239만원, 200만원 이상은 부서장 승인 필요"
+    }
+  },
+  {
+    "scenario_id": "S04_금지품목",
+    "category": "forbidden_item",
+    "user_query": "인사팀에서 팀 회식용으로 와인 선물세트 하나 사고 싶어. 요청자는 이영희야. 가능하면 등록까지 진행해줘.",
+    "expected_tool_calls": {
+      "required": ["product_search", "policy_search"],
+      "forbidden": ["purchase_request", "purchase_register"]
+    },
+    "expected_outcome": {
+      "purchase_registered": false,
+      "reason": "금지품목으로 분류된 상품 - 예산/승인 여부와 무관하게 무조건 반려"
+    }
+  },
+  {
+    "scenario_id": "S05_리퍼비시_팀장사전승인",
+    "category": "restricted_item",
+    "user_query": "재무팀에서 리퍼비시 아이패드 하나 구매하고 싶어. 요청자는 최지훈이야. 가능하면 등록까지 진행해줘.",
+    "expected_tool_calls": {
+      "required": ["product_search", "policy_search"],
+      "forbidden": ["purchase_register"]
+    },
+    "expected_outcome": {
+      "purchase_registered": false,
+      "reason": "리퍼비시(중고) 제품은 팀장 사전 승인 필요 - category 필드만으로는 알 수 없고 정책 문서 확인이 필수"
+    }
+  },
+  {
+    "scenario_id": "S06_예산부족",
+    "category": "insufficient_budget",
+    "user_query": "마케팅팀에서 사무용 의자 7개 사고 싶어. 요청자는 정수진이야. 가능하면 등록까지 진행해줘.",
+    "expected_tool_calls": {
+      "required": ["product_search", "budget_check"],
+      "forbidden": ["purchase_register"]
+    },
+    "expected_outcome": {
+      "purchase_registered": false,
+      "reason": "총 315만원, 마케팅팀 잔여 예산 270만원 초과"
+    }
+  }
+]
