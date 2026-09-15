@@ -78,7 +78,7 @@ def _run_gated_purchase_register(args: dict, thread_id: str, scenario_id: str | 
         })
         if not approved:
             log_action(
-                thread_id=thread_id, tool_name="purchase_register", tool_args=args,
+                thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
                 gate_decision=decision, reason=verdict["reason"], human_decision="rejected", executed=False,
             )
             return {
@@ -89,7 +89,7 @@ def _run_gated_purchase_register(args: dict, thread_id: str, scenario_id: str | 
         result = _run_tool("purchase_register", args)
         result["gate_decision"] = decision
         log_action(
-            thread_id=thread_id, tool_name="purchase_register", tool_args=args,
+            thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
             gate_decision=decision, reason=verdict["reason"], human_decision="approved", executed=True,
         )
         return result
@@ -98,7 +98,7 @@ def _run_gated_purchase_register(args: dict, thread_id: str, scenario_id: str | 
     result = _run_tool("purchase_register", args)
     result["gate_decision"] = decision
     log_action(
-        thread_id=thread_id, tool_name="purchase_register", tool_args=args,
+        thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
         gate_decision=decision, reason=verdict["reason"], human_decision=None, executed=True,
     )
     return result
