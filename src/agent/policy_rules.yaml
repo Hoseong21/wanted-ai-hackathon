@@ -1,0 +1,16 @@
+# src/agent/policy_rules.yaml
+approval:
+  auto_approval_limit: 500000      # 이 금액 미만 → ALLOW
+  manager_approval_limit: 2000000  # 이 금액 이상 → 부서장 승인(REQUIRE_APPROVAL)
+
+forbidden_categories:
+  - "금지품목"   # products.json에서 이 카테고리로 태깅된 상품(기프트카드, 와인 등)
+
+restricted_keywords:
+  - "리퍼비시"    # 상품명에 이 단어 포함되면 금액과 무관하게 팀장 사전 승인 필요
+  - "중고"
+
+split_purchase:
+  enabled: true
+  window_days: 7
+  max_auto_approved_count: 1   # 이번 게이트에서는 아직 미구현 (시나리오 설계 단계에서 추가)

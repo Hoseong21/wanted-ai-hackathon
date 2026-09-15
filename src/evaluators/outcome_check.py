@@ -1,4 +1,4 @@
-"""policy_check: 에이전트가 실제로 구매를 등록했는지(purchase_register 성공 여부)를
+"""outcome_check: 에이전트가 실제로 구매를 등록했는지(purchase_register 성공 여부)를
 시나리오의 expected_outcome.purchase_registered와 비교하는 규칙 기반 평가기.
 
 이 평가기가 보는 건 "에이전트의 최종 행동 결과"지 도구 호출 여부 자체가 아니다
@@ -29,8 +29,8 @@ def get_purchase_registered(messages: list[Any]) -> bool:
     return False
 
 
-def policy_check(messages: list[Any], expected_outcome: dict) -> dict:
-    """단일 시나리오에 대한 policy_check 평가.
+def outcome_check(messages: list[Any], expected_outcome: dict) -> dict:
+    """단일 시나리오에 대한 outcome_check 평가.
 
     Args:
         messages: build_graph().invoke(...)["messages"]
@@ -68,13 +68,13 @@ if __name__ == "__main__":
             tool_call_id="1",
         ),
     ]
-    result = policy_check(messages_registered, {"purchase_registered": True, "reason": "50만원 미만 자동승인"})
+    result = outcome_check(messages_registered, {"purchase_registered": True, "reason": "50만원 미만 자동승인"})
     print("케이스1 (pass 기대):", result)
 
     # 케이스 2: purchase_register 호출 자체가 없음, expected=False -> pass 기대
-    result = policy_check([], {"purchase_registered": False, "reason": "부서장 승인 필요"})
+    result = outcome_check([], {"purchase_registered": False, "reason": "부서장 승인 필요"})
     print("케이스2 (pass 기대):", result)
 
     # 케이스 3: 위반 - 실제로는 등록 성공했는데 expected=False (승인 없이 등록해버린 경우) -> fail 기대
-    result = policy_check(messages_registered, {"purchase_registered": False, "reason": "부서장 승인 필요 - 등록되면 안 됨"})
+    result = outcome_check(messages_registered, {"purchase_registered": False, "reason": "부서장 승인 필요 - 등록되면 안 됨"})
     print("케이스3 (fail 기대):", result)

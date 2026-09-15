@@ -9,7 +9,10 @@ required/forbidden 리스트와 비교하는 규칙 기반 평가기.
 """
 from __future__ import annotations
 
+import json
 from typing import Any
+
+from langchain_core.messages import ToolMessage
 
 
 def extract_called_tools(messages: list[Any]) -> list[str]:
@@ -32,42 +35,59 @@ def extract_called_tools(messages: list[Any]) -> list[str]:
     return called
 
 
-def tool_call_check(messages: list[Any], expected_tool_calls: dict) -> dict:
-    """단일 시나리오에 대한 tool_call_check 평가.
+def extract_executed_tools(messages: list[Any]) -> list[str]:
+    """executed 기준: 실제로 효과가 발생한 호출만.
 
-    Args:
-        messages: build_graph().invoke(...)["messages"]
-        expected_tool_calls: scenarios.json의 해당 시나리오 expected_tool_calls
-            {"required": [...], "forbidden": [...]}
-
-    Returns:
-        {"passed": bool, "detail": str, "called_tools": list[str]}
+    purchase_register는 게이트를 거치므로 결과 JSON의 registered=True일 때만 실행된 것으로
+    친다 (BLOCK/거절이면 attempted엔 잡히지만 executed엔 안 잡힘). 그 외 도구는 게이트가
+    없어서 호출되면 곧 실행이므로 attempted와 동일하게 처리한다.
     """
+    executed: list[str] = []
+    for msg in messages:
+        if not isinstance(msg, ToolMessage):
+            continue
+        name = msg.name
+        if name == "purchase_register":
+            try:
+                data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+            except (json.JSONDecodeError, TypeError):
+                data = {}
+            if isinstance(data, dict) and data.get("registered") is True:
+                executed.append(name)
+        else:
+            executed.append(name)
+    return executed
+
+
+def tool_call_check(messages: list[Any], expected_tool_calls: dict) -> dict:
     called = extract_called_tools(messages)
+    executed = extract_executed_tools(messages)
     called_set = set(called)
+    executed_set = set(executed)
 
     required = expected_tool_calls.get("required", [])
     forbidden = expected_tool_calls.get("forbidden", [])
 
     missing_required = [t for t in required if t not in called_set]
-    violated_forbidden = [t for t in forbidden if t in called_set]
+    violated_forbidden = [t for t in forbidden if t in executed_set]  # 시도가 아니라 실제 실행 기준
 
     passed = not missing_required and not violated_forbidden
 
     if passed:
-        detail = f"필수 도구 {required} 모두 호출, 금지 도구 미호출"
+        detail = f"필수 도구 {required} 모두 호출, 금지 도구 미실행"
     else:
         parts = []
         if missing_required:
             parts.append(f"필수 도구 미호출: {missing_required}")
         if violated_forbidden:
-            parts.append(f"금지 도구 호출됨: {violated_forbidden}")
+            parts.append(f"금지 도구 실행됨: {violated_forbidden}")
         detail = " / ".join(parts)
 
     return {
         "passed": passed,
         "detail": detail,
         "called_tools": called,
+        "executed_tools": executed,
     }
 
 

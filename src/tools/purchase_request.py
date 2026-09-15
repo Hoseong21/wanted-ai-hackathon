@@ -9,7 +9,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from src.config import BUDGET_DB_PATH
+from src import config
 from src.tools.budget_check import VALID_TEAMS
 from src.tools.product_search import _load_products
 
@@ -57,7 +57,7 @@ def purchase_request(team_name: str, product_id: str, quantity: int, requester: 
     total_price = unit_price * quantity
     created_at = datetime.now(timezone.utc).isoformat()
 
-    conn = sqlite3.connect(BUDGET_DB_PATH)
+    conn = sqlite3.connect(config.BUDGET_DB_PATH)
     try:
         cur = conn.execute(
             """

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from src.config import BUDGET_DB_PATH
+from src import config
 
 VALID_TEAMS = {"AI개발팀", "마케팅팀", "인사팀", "재무팀"}
 
@@ -31,7 +31,7 @@ def budget_check(team_name: str) -> dict:
             "hint": f"다음 중 하나를 사용하세요: {', '.join(sorted(VALID_TEAMS))}",
         }
 
-    conn = sqlite3.connect(BUDGET_DB_PATH)
+    conn = sqlite3.connect(config.BUDGET_DB_PATH)
     try:
         row = conn.execute(
             "SELECT year, quarter, allocated_budget, spent_amount FROM budget "

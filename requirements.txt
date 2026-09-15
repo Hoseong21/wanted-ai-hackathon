@@ -15,3 +15,5 @@ streamlit
 
 # db
 # sqlite3 is in the Python standard library
+
+pyyaml

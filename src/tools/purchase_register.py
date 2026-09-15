@@ -10,7 +10,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from src.config import BUDGET_DB_PATH
+from src import config
 
 
 def _parse_request_id(request_id: str) -> int | None:
@@ -42,7 +42,7 @@ def purchase_register(request_id: str) -> dict:
             "hint": "purchase_request가 반환한 'REQ-0001' 형식의 request_id를 사용하세요.",
         }
 
-    conn = sqlite3.connect(BUDGET_DB_PATH)
+    conn = sqlite3.connect(config.BUDGET_DB_PATH)
     try:
         row = conn.execute(
             "SELECT team_name, product_id, quantity, total_price, registered_at "
