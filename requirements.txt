@@ -9,6 +9,7 @@ langchain-openai
 
 # RAG
 chromadb
+sentence-transformers>=6.0.0
 
 # app
 streamlit
