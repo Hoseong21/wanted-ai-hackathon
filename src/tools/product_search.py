@@ -1,7 +1,7 @@
 """상품 검색 도구 (mock, judgment-free).
 
 data/products.json의 상품 목록에서 조건에 맞는 상품을 찾아 사실(fact)만 반환한다.
-"구매 가능/불가능" 같은 판단은 하지 않는다 — 그건 evaluators/policy_check.py의 몫.
+"구매 가능/불가능" 같은 판단은 하지 않는다 — 그건 evaluators/outcome_check.py의 몫.
 """
 
 from __future__ import annotations

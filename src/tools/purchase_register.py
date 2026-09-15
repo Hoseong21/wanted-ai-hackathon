@@ -2,7 +2,7 @@
 
 접수된 구매 요청(purchase_request)을 실제로 집행해 budget.db의 spent_amount에 반영한다.
 이 요청이 정책상 타당한지, 승인돼야 하는지는 판단하지 않는다 — 그건 에이전트와
-evaluators/policy_check.py가 이 툴을 호출하기 전에 이미 판단을 마쳤어야 하는 영역이다.
+evaluators/outcome_check.py가 이 툴을 호출하기 전에 이미 판단을 마쳤어야 하는 영역이다.
 """
 
 from __future__ import annotations

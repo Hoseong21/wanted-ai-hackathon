@@ -1,7 +1,7 @@
 """팀 예산 조회 도구 (mock, judgment-free).
 
 data/budget.db에서 팀의 예산 현황을 조회해 사실(fact)만 반환한다.
-"예산 충분/부족" 같은 판단은 하지 않는다 — 그건 에이전트와 evaluators/policy_check.py의 몫.
+"예산 충분/부족" 같은 판단은 하지 않는다 — 그건 에이전트와 evaluators/outcome_check.py의 몫.
 """
 
 from __future__ import annotations

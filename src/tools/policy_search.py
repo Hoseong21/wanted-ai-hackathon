@@ -2,7 +2,7 @@
 
 purchase_policy 벡터DB(Chroma + KURE-v1 1단계, KURE-v2 2단계 rerank)에서 질의와 관련된 정책 문서
 조각을 찾아 사실(fact)만 반환한다. 이 정책이 지금 상황에 적용되는지, 위반인지 등의 판단은 하지
-않는다 — 그건 에이전트와 evaluators/policy_check.py의 몫.
+않는다 — 그건 에이전트와 evaluators/outcome_check.py의 몫.
 
 에이전트가 "필요하다고 판단할 때만" 호출하는 5번째 툴이라는 점이 중요하다: 자동으로 매 질문마다
 실행되지 않는다. 에이전트가 이 툴을 호출했는지/안 했는지 자체가 grounding_check의 평가 대상이 된다.
