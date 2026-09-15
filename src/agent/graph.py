@@ -56,14 +56,14 @@ def _run_tool(name: str, args: dict) -> dict:
     return TOOLS_BY_NAME[name].invoke(args)
 
 
-def _run_gated_purchase_register(args: dict, thread_id: str) -> dict:
+def _run_gated_purchase_register(args: dict, thread_id: str, scenario_id: str | None) -> dict:
     request_id = args.get("request_id", "")
     verdict = evaluate_purchase_register(request_id)
     decision = verdict["decision"]
 
     if decision == "BLOCK":
         log_action(
-            thread_id=thread_id, tool_name="purchase_register", tool_args=args,
+            thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
             gate_decision=decision, reason=verdict["reason"], human_decision=None, executed=False,
         )
         return {
@@ -107,12 +107,13 @@ def _run_gated_purchase_register(args: dict, thread_id: str) -> dict:
 def _verify_and_execute_node(state: AgentState, config: RunnableConfig) -> dict:
     last_message = state["messages"][-1]
     thread_id = config["configurable"]["thread_id"]
+    scenario_id = config["configurable"].get("scenario_id")
     tool_messages = []
 
     for tc in last_message.tool_calls:
         name, args, tc_id = tc["name"], tc["args"], tc["id"]
         if name in GATED_TOOLS:
-            result = _run_gated_purchase_register(args, thread_id)
+            result = _run_gated_purchase_register(args, thread_id, scenario_id)
         else:
             result = _run_tool(name, args)
         tool_messages.append(

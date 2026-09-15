@@ -65,7 +65,7 @@ def run_scenario(scenario: dict) -> dict:
     # (b) Agent 단독 (게이트 없음)
     with temp_budget_db():
         agent_app_nogate = build_graph(gated=False)
-        thread_nogate = {"configurable": {"thread_id": f"{scenario['scenario_id']}-nogate"}}
+        thread_nogate = {"configurable": {"thread_id": f"{scenario['scenario_id']}-nogate", "scenario_id": scenario["scenario_id"]}}
         result_nogate = agent_app_nogate.invoke({"messages": [HumanMessage(content=query)]}, config=thread_nogate)
     messages_nogate = result_nogate["messages"]
     outcome_nogate = outcome_check_fn(messages_nogate, scenario["expected_outcome"])
@@ -73,7 +73,7 @@ def run_scenario(scenario: dict) -> dict:
     # (c) Agent + Verification (게이트 있음). REQUIRE_APPROVAL은 스크립트 승인자가 거절 처리.
     with temp_budget_db():
         agent_app_gated = build_graph(gated=True)
-        thread_gated = {"configurable": {"thread_id": f"{scenario['scenario_id']}-gated"}}
+        thread_gated = {"configurable": {"thread_id": f"{scenario['scenario_id']}-gated", "scenario_id": scenario["scenario_id"]}}
         result_gated = agent_app_gated.invoke({"messages": [HumanMessage(content=query)]}, config=thread_gated)
         while "__interrupt__" in result_gated:
             result_gated = agent_app_gated.invoke(Command(resume=False), config=thread_gated)
