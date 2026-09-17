@@ -13,4 +13,3 @@ restricted_keywords:
 split_purchase:
   enabled: true
   window_days: 7
-  max_auto_approved_count: 1   # 이번 게이트에서는 아직 미구현 (시나리오 설계 단계에서 추가)

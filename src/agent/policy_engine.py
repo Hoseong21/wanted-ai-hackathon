@@ -15,6 +15,7 @@ from pathlib import Path
 import yaml
 
 from src import config
+from datetime import datetime, timedelta, timezone
 
 _RULES_PATH = Path(__file__).parent / "policy_rules.yaml"
 
@@ -65,6 +66,28 @@ def _get_remaining_budget(team_name: str) -> int | None:
         return None
     allocated, spent = row
     return allocated - spent
+
+
+def _sum_recent_amount(
+    team_name: str, category: str, window_days: int, exclude_request_id: int
+) -> int:
+    """최근 window_days일 내, 동일 팀·카테고리로 이미 등록된 구매 금액의 합계."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+    try:
+        rows = conn.execute(
+            "SELECT product_id, total_price FROM purchase_requests "
+            "WHERE team_name = ? AND registered_at IS NOT NULL AND registered_at >= ? AND request_id != ?",
+            (team_name, cutoff, exclude_request_id),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    products = {p["id"]: p for p in json.loads(config.PRODUCTS_PATH.read_text(encoding="utf-8"))}
+    return sum(
+        total_price for product_id, total_price in rows
+        if (p := products.get(product_id)) and p["category"] == category
+    )
 
 
 def evaluate_purchase_register(request_id: str) -> dict:
@@ -126,6 +149,24 @@ def evaluate_purchase_register(request_id: str) -> dict:
     if total_price >= auto_limit:
         return {"decision": "REQUIRE_APPROVAL", "reason": f"{total_price:,}원, 팀장 승인 구간(≥{auto_limit:,}원)", "facts": facts}
 
+    # 5. 분할구매 의심 — 이번 건 자체는 자동승인 구간이지만, 최근 N일간 동일 팀·카테고리 누적 금액과
+    #    합산하면 자동승인 한도를 넘는 경우. 고액 구매를 여러 건으로 쪼개서 승인을 우회하는 패턴을 잡는다.
+    split_rules = rules.get("split_purchase", {})
+    if split_rules.get("enabled"):
+        recent_total = _sum_recent_amount(
+            req["team_name"], category, split_rules["window_days"], exclude_request_id=numeric_id,
+        )
+        combined = recent_total + total_price
+        if combined >= auto_limit:
+            return {
+                "decision": "REQUIRE_APPROVAL",
+                "reason": (
+                    f"분할구매 의심 (최근 {split_rules['window_days']}일 내 "
+                    f"'{category}' 카테고리 누적 {recent_total:,}원 + 이번 {total_price:,}원 = {combined:,}원, "
+                    f"자동승인 한도 {auto_limit:,}원 초과)"
+                ),
+                "facts": {**facts, "recent_category_total": recent_total, "combined_total": combined},
+            }
     return {"decision": "ALLOW", "reason": f"{total_price:,}원, 자동승인 구간(<{auto_limit:,}원)", "facts": facts}
 
 
