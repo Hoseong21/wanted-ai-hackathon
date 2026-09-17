@@ -64,13 +64,16 @@ def _agent_node(state: AgentState) -> dict:
     return {"messages": [response]}
 
 
-def _run_tool(name: str, args: dict) -> dict:
-    return TOOLS_BY_NAME[name].invoke(args)
+def _run_tool(name: str, args: dict, config: RunnableConfig | None = None) -> dict:
+    return TOOLS_BY_NAME[name].invoke(args, config=config)
 
 
-def _run_gated_purchase_register(args: dict, thread_id: str, scenario_id: str | None) -> dict:
+def _run_gated_purchase_register(
+    args: dict, thread_id: str, scenario_id: str | None, config: RunnableConfig
+) -> dict:
     request_id = args.get("request_id", "")
-    verdict = evaluate_purchase_register(request_id)
+    db_path = config.get("configurable", {}).get("db_path")
+    verdict = evaluate_purchase_register(request_id, db_path=db_path)
     decision = verdict["decision"]
 
     if decision == "BLOCK":
@@ -98,7 +101,7 @@ def _run_gated_purchase_register(args: dict, thread_id: str, scenario_id: str | 
                 "message": f"사람 승인자가 거절함 (사유: {verdict['reason']})",
                 "registered": False, "gate_decision": decision,
             }
-        result = _run_tool("purchase_register", args)
+        result = _run_tool("purchase_register", args, config)
         result["gate_decision"] = decision
         log_action(
             thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
@@ -107,7 +110,7 @@ def _run_gated_purchase_register(args: dict, thread_id: str, scenario_id: str | 
         return result
 
     # ALLOW
-    result = _run_tool("purchase_register", args)
+    result = _run_tool("purchase_register", args, config)
     result["gate_decision"] = decision
     log_action(
         thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
@@ -125,9 +128,9 @@ def _verify_and_execute_node(state: AgentState, config: RunnableConfig) -> dict:
     for tc in last_message.tool_calls:
         name, args, tc_id = tc["name"], tc["args"], tc["id"]
         if name in GATED_TOOLS:
-            result = _run_gated_purchase_register(args, thread_id, scenario_id)
+            result = _run_gated_purchase_register(args, thread_id, scenario_id, config)
         else:
-            result = _run_tool(name, args)
+            result = _run_tool(name, args, config)
         tool_messages.append(
             ToolMessage(content=json.dumps(result, ensure_ascii=False), name=name, tool_call_id=tc_id)
         )
