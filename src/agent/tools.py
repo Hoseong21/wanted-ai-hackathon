@@ -4,10 +4,9 @@ src/tools/*.py의 순수 함수들은 그대로 두고, 여기서 LangChain 프�
 스키마(Literal enum, description)를 입혀서 에이전트가 바인딩할 수 있는 형태로 만든다.
 """
 
-from __future__ import annotations
-
 from typing import Literal, Optional
 
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
@@ -19,6 +18,16 @@ from src.tools.purchase_request import purchase_request as _purchase_request
 
 TeamName = Literal["AI개발팀", "마케팅팀", "인사팀", "재무팀"]
 Category = Literal["노트북", "모니터", "주변기기", "소프트웨어", "사무용품", "기타", "금지품목", "복지"]
+
+
+def _db_path_from(config: RunnableConfig):
+    """RunnableConfig의 configurable.db_path를 꺼낸다.
+
+    없으면 None을 반환해서 하위 함수가 자체적으로 config.BUDGET_DB_PATH로 폴백하게 한다.
+    """
+    if not config:
+        return None
+    return config.get("configurable", {}).get("db_path")
 
 
 class ProductSearchInput(BaseModel):
@@ -49,9 +58,9 @@ class BudgetCheckInput(BaseModel):
 
 
 @tool("budget_check", args_schema=BudgetCheckInput)
-def budget_check_tool(team_name: str) -> dict:
+def budget_check_tool(team_name: str, config: RunnableConfig) -> dict:
     """팀의 이번 분기 예산 현황(배정액, 사용액, 잔여액)을 조회한다."""
-    return _budget_check(team_name)
+    return _budget_check(team_name, db_path=_db_path_from(config))
 
 
 class PurchaseRequestInput(BaseModel):
@@ -62,9 +71,11 @@ class PurchaseRequestInput(BaseModel):
 
 
 @tool("purchase_request", args_schema=PurchaseRequestInput)
-def purchase_request_tool(team_name: str, product_id: str, quantity: int, requester: str) -> dict:
+def purchase_request_tool(
+    team_name: str, product_id: str, quantity: int, requester: str, config: RunnableConfig
+) -> dict:
     """구매 요청을 접수한다. 아직 예산에 실제로 반영되지는 않으며, purchase_register로 별도 집행해야 한다."""
-    return _purchase_request(team_name, product_id, quantity, requester)
+    return _purchase_request(team_name, product_id, quantity, requester, db_path=_db_path_from(config))
 
 
 class PurchaseRegisterInput(BaseModel):
@@ -72,9 +83,9 @@ class PurchaseRegisterInput(BaseModel):
 
 
 @tool("purchase_register", args_schema=PurchaseRegisterInput)
-def purchase_register_tool(request_id: str) -> dict:
+def purchase_register_tool(request_id: str, config: RunnableConfig) -> dict:
     """접수된 구매 요청을 실제로 집행해 팀 예산에 반영한다. 되돌릴 수 없는 최종 액션이므로 신중하게 호출해야 한다."""
-    return _purchase_register(request_id)
+    return _purchase_register(request_id, db_path=_db_path_from(config))
 
 
 ALL_TOOLS = [
