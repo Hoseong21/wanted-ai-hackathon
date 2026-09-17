@@ -29,8 +29,8 @@ def _load_product(product_id: str) -> dict | None:
     return next((p for p in products if p["id"] == product_id), None)
 
 
-def _get_purchase_request(request_id: int) -> dict | None:
-    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+def _get_purchase_request(request_id: int, db_path: Path) -> dict | None:
+    conn = sqlite3.connect(db_path)
     try:
         row = conn.execute(
             "SELECT team_name, product_id, quantity, total_price, registered_at "
@@ -51,8 +51,8 @@ def _get_purchase_request(request_id: int) -> dict | None:
     }
 
 
-def _get_remaining_budget(team_name: str) -> int | None:
-    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+def _get_remaining_budget(team_name: str, db_path: Path) -> int | None:
+    conn = sqlite3.connect(db_path)
     try:
         row = conn.execute(
             "SELECT allocated_budget, spent_amount FROM budget "
@@ -69,11 +69,11 @@ def _get_remaining_budget(team_name: str) -> int | None:
 
 
 def _sum_recent_amount(
-    team_name: str, category: str, window_days: int, exclude_request_id: int
+    team_name: str, category: str, window_days: int, exclude_request_id: int, db_path: Path
 ) -> int:
     """최근 window_days일 내, 동일 팀·카테고리로 이미 등록된 구매 금액의 합계."""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
-    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+    conn = sqlite3.connect(db_path)
     try:
         rows = conn.execute(
             "SELECT product_id, total_price FROM purchase_requests "
@@ -90,11 +90,17 @@ def _sum_recent_amount(
     )
 
 
-def evaluate_purchase_register(request_id: str) -> dict:
+def evaluate_purchase_register(request_id: str, db_path: Path | None = None) -> dict:
     """purchase_register 실행 여부를 게이트에서 판정.
+
+    Args:
+        request_id: 검증할 요청 ID
+        db_path: 조회할 budget DB 경로. 지정하지 않으면 config.BUDGET_DB_PATH를 사용한다
+            (세션/시나리오별로 격리된 DB를 쓸 때 명시적으로 넘긴다).
 
     Returns: {"decision": "ALLOW"|"REQUIRE_APPROVAL"|"BLOCK", "reason": str, "facts": dict}
     """
+    resolved_path = db_path or config.BUDGET_DB_PATH
     rules = _load_rules()
 
     if not request_id.startswith("REQ-"):
@@ -104,7 +110,7 @@ def evaluate_purchase_register(request_id: str) -> dict:
     except ValueError:
         return {"decision": "BLOCK", "reason": f"잘못된 request_id 형식: {request_id}", "facts": {}}
 
-    req = _get_purchase_request(numeric_id)
+    req = _get_purchase_request(numeric_id, resolved_path)
     if req is None:
         return {"decision": "BLOCK", "reason": f"request_id '{request_id}' 없음", "facts": {}}
     if req["already_registered"]:
@@ -114,7 +120,7 @@ def evaluate_purchase_register(request_id: str) -> dict:
     if product is None:
         return {"decision": "BLOCK", "reason": f"product_id '{req['product_id']}' 카탈로그에 없음", "facts": req}
 
-    remaining = _get_remaining_budget(req["team_name"])
+    remaining = _get_remaining_budget(req["team_name"], resolved_path)
     if remaining is None:
         return {"decision": "BLOCK", "reason": f"'{req['team_name']}' 예산 데이터 없음", "facts": req}
 
@@ -154,7 +160,7 @@ def evaluate_purchase_register(request_id: str) -> dict:
     split_rules = rules.get("split_purchase", {})
     if split_rules.get("enabled"):
         recent_total = _sum_recent_amount(
-            req["team_name"], category, split_rules["window_days"], exclude_request_id=numeric_id,
+            req["team_name"], category, split_rules["window_days"], exclude_request_id=numeric_id, db_path=resolved_path,
         )
         combined = recent_total + total_price
         if combined >= auto_limit:

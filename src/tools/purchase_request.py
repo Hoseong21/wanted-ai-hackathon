@@ -8,13 +8,16 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 from src import config
 from src.tools.budget_check import VALID_TEAMS
 from src.tools.product_search import _load_products
 
 
-def purchase_request(team_name: str, product_id: str, quantity: int, requester: str) -> dict:
+def purchase_request(
+    team_name: str, product_id: str, quantity: int, requester: str, db_path: Path | None = None
+) -> dict:
     """구매 요청을 접수하고 기록한다.
 
     Args:
@@ -22,6 +25,7 @@ def purchase_request(team_name: str, product_id: str, quantity: int, requester: 
         product_id: product_search로 조회한 product_id
         quantity: 수량 (1 이상)
         requester: 요청자 이름 또는 사번
+        db_path: 기록할 budget DB 경로. 지정하지 않으면 config.BUDGET_DB_PATH를 사용한다.
 
     Returns:
         성공 시: {"request_id", "team_name", "product_id", "quantity", "unit_price", "total_price", "created": True}
@@ -57,7 +61,8 @@ def purchase_request(team_name: str, product_id: str, quantity: int, requester: 
     total_price = unit_price * quantity
     created_at = datetime.now(timezone.utc).isoformat()
 
-    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+    resolved_path = db_path or config.BUDGET_DB_PATH
+    conn = sqlite3.connect(resolved_path)
     try:
         cur = conn.execute(
             """

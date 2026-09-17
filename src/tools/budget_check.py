@@ -7,17 +7,20 @@ data/budget.db에서 팀의 예산 현황을 조회해 사실(fact)만 반환한
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 from src import config
 
 VALID_TEAMS = {"AI개발팀", "마케팅팀", "인사팀", "재무팀"}
 
 
-def budget_check(team_name: str) -> dict:
+def budget_check(team_name: str, db_path: Path | None = None) -> dict:
     """팀의 예산 현황을 조회한다.
 
     Args:
         team_name: 예산을 조회할 팀명
+        db_path: 조회할 budget DB 경로. 지정하지 않으면 config.BUDGET_DB_PATH를 사용한다
+            (세션/시나리오별로 격리된 DB를 쓸 때 명시적으로 넘긴다).
 
     Returns:
         성공 시: {"team_name", "period", "allocated", "spent", "remaining"}
@@ -31,7 +34,8 @@ def budget_check(team_name: str) -> dict:
             "hint": f"다음 중 하나를 사용하세요: {', '.join(sorted(VALID_TEAMS))}",
         }
 
-    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+    resolved_path = db_path or config.BUDGET_DB_PATH
+    conn = sqlite3.connect(resolved_path)
     try:
         row = conn.execute(
             "SELECT year, quarter, allocated_budget, spent_amount FROM budget "

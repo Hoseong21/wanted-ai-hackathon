@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 from src import config
 
@@ -22,11 +23,12 @@ def _parse_request_id(request_id: str) -> int | None:
         return None
 
 
-def purchase_register(request_id: str) -> dict:
+def purchase_register(request_id: str, db_path: Path | None = None) -> dict:
     """구매 요청을 집행해 예산에 실제로 반영한다.
 
     Args:
         request_id: purchase_request로 발급받은 요청 ID (예: "REQ-0001")
+        db_path: 반영할 budget DB 경로. 지정하지 않으면 config.BUDGET_DB_PATH를 사용한다.
 
     Returns:
         성공 시: {"request_id", "team_name", "product_id", "quantity", "total_price",
@@ -42,7 +44,8 @@ def purchase_register(request_id: str) -> dict:
             "hint": "purchase_request가 반환한 'REQ-0001' 형식의 request_id를 사용하세요.",
         }
 
-    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+    resolved_path = db_path or config.BUDGET_DB_PATH
+    conn = sqlite3.connect(resolved_path)
     try:
         row = conn.execute(
             "SELECT team_name, product_id, quantity, total_price, registered_at "
