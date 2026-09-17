@@ -13,27 +13,21 @@ from datetime import datetime, timedelta, timezone
 
 import os
 import json
-import sys
-import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
-
-
 from src import config
 from src.agent.baseline import run_baseline
 from src.agent.graph import build_graph
+from src.db.init_budget_db import create_temp_budget_db
 from src.evaluators.grounding_check import extract_currency_numbers, get_final_answer
 from src.evaluators.grounding_check import grounding_check as grounding_check_fn
 from src.evaluators.outcome_check import outcome_check as outcome_check_fn
 from src.evaluators.tool_call_check import tool_call_check as tool_call_check_fn
 from src.evaluators.tool_call_check import extract_called_tools
-
-sys.path.insert(0, str(Path(__file__).parent.parent / "data"))
-from init_budget_db import init_db  # noqa: E402  # type: ignore
 
 SCENARIOS_PATH = Path(__file__).parent / "scenarios.json"
 RESULTS_PATH = Path(__file__).parent / "results.json"
@@ -41,22 +35,26 @@ RESULTS_PATH = Path(__file__).parent / "results.json"
 
 @contextmanager
 def temp_budget_db():
-    tmp_path = Path(tempfile.mkstemp(suffix=".db")[1])
+    """시나리오 실행마다 독립된 임시 budget DB를 만든다.
+
+    전역 config.BUDGET_DB_PATH는 건드리지 않는다. 대신 yield된 경로를
+    호출부가 apply_initial_state()와 thread_config의 configurable.db_path에
+    명시적으로 넘겨서, RunnableConfig를 통해 툴/그래프 실행에 주입한다.
+    """
+    tmp_path = create_temp_budget_db()
     try:
-        init_db(db_path=tmp_path, reset=True)
-        config.BUDGET_DB_PATH = tmp_path
         yield tmp_path
     finally:
         tmp_path.unlink(missing_ok=True)
 
 
-def apply_initial_state(initial_state: dict | None, products_by_id: dict) -> None:
-    """시나리오의 initial_state를 현재 config.BUDGET_DB_PATH(임시 DB)에 적용한다.
+def apply_initial_state(initial_state: dict | None, products_by_id: dict, db_path: Path) -> None:
+    """시나리오의 initial_state를 지정된 db_path(임시 DB)에 적용한다.
     temp_budget_db()로 DB가 만들어진 직후, 에이전트 실행 전에 호출해야 한다.
     """
     if not initial_state:
         return
-    conn = sqlite3.connect(config.BUDGET_DB_PATH)
+    conn = sqlite3.connect(db_path)
     try:
         for ov in initial_state.get("budget_overrides", []):
             conn.execute(
@@ -113,20 +111,32 @@ def run_scenario(scenario: dict, repeat_idx: int = 0, run_baseline_flag: bool = 
         baseline_section = {"answer": baseline_result["answer"], "grounding": baseline_grounding}
 
     # (b) Agent 단독 (게이트 없음)
-    with temp_budget_db():
-        apply_initial_state(scenario.get("initial_state"), products_by_id)
+    with temp_budget_db() as db_path_nogate:
+        apply_initial_state(scenario.get("initial_state"), products_by_id, db_path_nogate)
         agent_app_nogate = build_graph(gated=False)
-        thread_nogate = {"configurable": {"thread_id": f"{scenario['scenario_id']}-nogate-r{repeat_idx}", "scenario_id": scenario["scenario_id"]}}
+        thread_nogate = {
+            "configurable": {
+                "thread_id": f"{scenario['scenario_id']}-nogate-r{repeat_idx}",
+                "scenario_id": scenario["scenario_id"],
+                "db_path": db_path_nogate,
+            }
+        }
         result_nogate = agent_app_nogate.invoke({"messages": [HumanMessage(content=query)]}, config=thread_nogate)
     messages_nogate = result_nogate["messages"]
     outcome_nogate = outcome_check_fn(messages_nogate, scenario["expected_outcome"])
     called_nogate = extract_called_tools(messages_nogate)
 
     # (c) Agent + Verification (게이트 있음)
-    with temp_budget_db():
-        apply_initial_state(scenario.get("initial_state"), products_by_id)
+    with temp_budget_db() as db_path_gated:
+        apply_initial_state(scenario.get("initial_state"), products_by_id, db_path_gated)
         agent_app_gated = build_graph(gated=True)
-        thread_gated = {"configurable": {"thread_id": f"{scenario['scenario_id']}-gated-r{repeat_idx}", "scenario_id": scenario["scenario_id"]}}
+        thread_gated = {
+            "configurable": {
+                "thread_id": f"{scenario['scenario_id']}-gated-r{repeat_idx}",
+                "scenario_id": scenario["scenario_id"],
+                "db_path": db_path_gated,
+            }
+        }
         result_gated = agent_app_gated.invoke({"messages": [HumanMessage(content=query)]}, config=thread_gated)
         while "__interrupt__" in result_gated:
             result_gated = agent_app_gated.invoke(Command(resume=False), config=thread_gated)
