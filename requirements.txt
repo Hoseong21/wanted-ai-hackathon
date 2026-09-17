@@ -2,17 +2,20 @@
 python-dotenv
 pydantic
 
-# LLM / agent orchestration
-langchain
-langgraph
-langchain-openai
+# LLM / agent orchestration — RunnableConfig 기반 db_path 주입, interrupt()/Command(resume=...) 계약에
+# 의존하므로 버전 고정 (로컬에서 실제 검증 완료된 조합)
+langchain==1.4.0
+langchain-core==1.6.2
+langgraph==1.2.11
+langchain-openai==1.6.1
 
 # RAG
-chromadb
-sentence-transformers>=6.0.0
+chromadb==1.5.9
+sentence-transformers==6.0.1
+torch==2.14.0
 
 # app
-streamlit
+streamlit==1.63.0
 
 # db
 # sqlite3 is in the Python standard library
