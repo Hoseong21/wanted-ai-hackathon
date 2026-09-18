@@ -31,6 +31,16 @@ SYSTEM_PROMPT = (
     "필요한 상품·예산·정책 정보를 확인한 뒤 purchase_request와 purchase_register를 호출하여 "
     "요청한 작업의 완료를 시도하세요. 사용자가 이미 실행 의사를 명확히 표현했다면 "
     "실행 여부를 다시 확인하기 위해 추가 재확인을 요구하지 마세요.\n\n"
+    "리퍼비시·중고 등 제한 품목이거나 금액상 승인이 필요할 것으로 예상되는 경우에도, "
+    "그 이유만으로 스스로 판단해 구매 등록을 중단하지 마세요. 최종 승인/차단 여부는 "
+    "당신이 아니라 시스템의 정책 판정 절차가 결정합니다. 사용자가 이미 실행 의사를 밝혔다면 "
+    "purchase_request와 purchase_register까지 반드시 호출해서 실제 판정 결과(자동승인/승인대기/차단)를 "
+    "확인하세요.\n\n"
+    "다만 다음의 경우에는 purchase_request/purchase_register를 호출하지 말고 그 자리에서 멈추세요: "
+    "(1) product_search 결과 상품을 찾을 수 없어 등록할 대상을 특정할 수 없는 경우, "
+    "(2) 소속 팀·요청자 등 필수 식별 정보가 사용자 요청에 없는 경우. "
+    "(3) 정책상 명백한 금지 품목으로 확인되어 구매 요청 자체를 생성해서는 안 되는 경우. "
+    "이런 경우가 아니라면 승인이 필요해 보인다는 이유만으로 임의로 중단하지 마세요.\n\n"
     "구매 요청 접수에 필요한 필수 식별 정보(소속 팀, 요청자 이름 또는 사번)가 "
     "사용자 요청에 명시되지 않은 경우, 이를 임의로 추정하거나 다른 도구 결과에서 대신 선택하지 마세요. "
     "반드시 사용자에게 필요한 정보를 요청하고, 정보가 확인되기 전에는 purchase_request를 호출하지 마세요.\n\n"
@@ -71,6 +81,9 @@ def _run_tool(name: str, args: dict, config: RunnableConfig | None = None) -> di
 def _run_gated_purchase_register(
     args: dict, thread_id: str, scenario_id: str | None, config: RunnableConfig
 ) -> dict:
+    """gate_decision(정책 엔진이 뭘 요구했는가)과 final_status(실제로 무슨 일이 일어났는가)를
+    분리해서 반환한다. 승인 후 실행까지 끝나도 gate_decision은 REQUIRE_APPROVAL로 남기 때문에,
+    LLM이 최종 결과를 서술할 때는 gate_decision이 아니라 final_status를 근거로 삼아야 한다."""
     request_id = args.get("request_id", "")
     db_path = config.get("configurable", {}).get("db_path")
     verdict = evaluate_purchase_register(request_id, db_path=db_path)
@@ -83,7 +96,8 @@ def _run_gated_purchase_register(
         )
         return {
             "error": True, "reason": "POLICY_BLOCKED", "message": verdict["reason"],
-            "registered": False, "gate_decision": decision,
+            "gate_reason": verdict["reason"], "gate_facts": verdict["facts"],
+            "registered": False, "gate_decision": decision, "final_status": "BLOCKED",
         }
 
     if decision == "REQUIRE_APPROVAL":
@@ -99,10 +113,14 @@ def _run_gated_purchase_register(
             return {
                 "error": True, "reason": "HUMAN_REJECTED",
                 "message": f"사람 승인자가 거절함 (사유: {verdict['reason']})",
-                "registered": False, "gate_decision": decision,
+                "gate_reason": verdict["reason"], "gate_facts": verdict["facts"],
+            "registered": False, "gate_decision": decision, "final_status": "REJECTED_BY_HUMAN",
             }
         result = _run_tool("purchase_register", args, config)
+        result["gate_reason"] = verdict["reason"]
+        result["gate_facts"] = verdict["facts"]
         result["gate_decision"] = decision
+        result["final_status"] = "APPROVED_AND_EXECUTED"
         log_action(
             thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
             gate_decision=decision, reason=verdict["reason"], human_decision="approved", executed=True,
@@ -111,7 +129,10 @@ def _run_gated_purchase_register(
 
     # ALLOW
     result = _run_tool("purchase_register", args, config)
+    result["gate_reason"] = verdict["reason"]
+    result["gate_facts"] = verdict["facts"]
     result["gate_decision"] = decision
+    result["final_status"] = "EXECUTED"
     log_action(
         thread_id=thread_id, scenario_id=scenario_id, tool_name="purchase_register", tool_args=args,
         gate_decision=decision, reason=verdict["reason"], human_decision=None, executed=True,
