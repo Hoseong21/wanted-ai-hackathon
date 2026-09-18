@@ -104,25 +104,25 @@ def evaluate_purchase_register(request_id: str, db_path: Path | None = None) -> 
     rules = _load_rules()
 
     if not request_id.startswith("REQ-"):
-        return {"decision": "BLOCK", "reason": f"잘못된 request_id 형식: {request_id}", "facts": {}}
+        return {"decision": "BLOCK", "reason": f"요청 ID '{request_id}'의 형식이 올바르지 않습니다.", "facts": {}}
     try:
         numeric_id = int(request_id[4:])
     except ValueError:
-        return {"decision": "BLOCK", "reason": f"잘못된 request_id 형식: {request_id}", "facts": {}}
+        return {"decision": "BLOCK", "reason": f"요청 ID '{request_id}'의 형식이 올바르지 않습니다.", "facts": {}}
 
     req = _get_purchase_request(numeric_id, resolved_path)
     if req is None:
-        return {"decision": "BLOCK", "reason": f"request_id '{request_id}' 없음", "facts": {}}
+        return {"decision": "BLOCK", "reason": f"요청 ID '{request_id}'에 해당하는 구매 요청을 찾을 수 없습니다.", "facts": {}}
     if req["already_registered"]:
-        return {"decision": "BLOCK", "reason": "이미 등록된 요청 (중복 등록)", "facts": req}
+        return {"decision": "BLOCK", "reason": "이미 등록이 완료된 요청입니다. (중복 등록 시도)", "facts": req}
 
     product = _load_product(req["product_id"])
     if product is None:
-        return {"decision": "BLOCK", "reason": f"product_id '{req['product_id']}' 카탈로그에 없음", "facts": req}
+        return {"decision": "BLOCK", "reason": f"제품 ID '{req['product_id']}'는 제품 카탈로그에 존재하지 않습니다.", "facts": req}
 
     remaining = _get_remaining_budget(req["team_name"], resolved_path)
     if remaining is None:
-        return {"decision": "BLOCK", "reason": f"'{req['team_name']}' 예산 데이터 없음", "facts": req}
+        return {"decision": "BLOCK", "reason": f"'{req['team_name']}' 팀의 예산 데이터를 찾을 수 없습니다.", "facts": req}
 
     total_price = req["total_price"]
     category = product["category"]
@@ -131,13 +131,13 @@ def evaluate_purchase_register(request_id: str, db_path: Path | None = None) -> 
 
     # 1. 금지 품목 — 예산/승인 여부와 무관하게 무조건 차단
     if category in rules["forbidden_categories"]:
-        return {"decision": "BLOCK", "reason": f"금지 품목 카테고리('{category}')", "facts": facts}
+        return {"decision": "BLOCK", "reason": f"'{category}'는 금지된 품목 카테고리이므로 구매할 수 없습니다.", "facts": facts}
 
     # 2. 예산 부족 — 승인 여부와 무관하게 차단
     if total_price > remaining:
         return {
             "decision": "BLOCK",
-            "reason": f"예산 부족 (요청 {total_price:,}원 > 잔여 {remaining:,}원)",
+            "reason": f"요청 금액 {total_price:,}원이 팀의 잔여 예산 {remaining:,}원을 초과합니다.",
             "facts": facts,
         }
 
@@ -146,14 +146,14 @@ def evaluate_purchase_register(request_id: str, db_path: Path | None = None) -> 
 
     # 3. 금액 구간
     if total_price >= manager_limit:
-        return {"decision": "REQUIRE_APPROVAL", "reason": f"{total_price:,}원, 부서장 승인 구간(≥{manager_limit:,}원)", "facts": facts}
+        return {"decision": "REQUIRE_APPROVAL", "reason": f"요청 금액 {total_price:,}원은 부서장 승인이 필요한 {manager_limit:,}원 이상 구간입니다.", "facts": facts}
 
     # 4. 리퍼비시/중고 — 금액과 무관하게 승인 필요
     if is_restricted:
-        return {"decision": "REQUIRE_APPROVAL", "reason": "리퍼비시/중고 제품, 팀장 사전 승인 필요", "facts": facts}
+        return {"decision": "REQUIRE_APPROVAL", "reason": "리퍼비시/중고 제품은 팀장의 사전 승인이 필요합니다.", "facts": facts}
 
     if total_price >= auto_limit:
-        return {"decision": "REQUIRE_APPROVAL", "reason": f"{total_price:,}원, 팀장 승인 구간(≥{auto_limit:,}원)", "facts": facts}
+        return {"decision": "REQUIRE_APPROVAL", "reason": f"요청 금액 {total_price:,}원은 팀장 승인이 필요한 {auto_limit:,}원 이상 구간입니다.", "facts": facts}
 
     # 5. 분할구매 의심 — 이번 건 자체는 자동승인 구간이지만, 최근 N일간 동일 팀·카테고리 누적 금액과
     #    합산하면 자동승인 한도를 넘는 경우. 고액 구매를 여러 건으로 쪼개서 승인을 우회하는 패턴을 잡는다.
@@ -167,13 +167,13 @@ def evaluate_purchase_register(request_id: str, db_path: Path | None = None) -> 
             return {
                 "decision": "REQUIRE_APPROVAL",
                 "reason": (
-                    f"분할구매 의심 (최근 {split_rules['window_days']}일 내 "
-                    f"'{category}' 카테고리 누적 {recent_total:,}원 + 이번 {total_price:,}원 = {combined:,}원, "
-                    f"자동승인 한도 {auto_limit:,}원 초과)"
+                    f"최근 {split_rules['window_days']}일간 '{category}' 카테고리 누적 구매액 {recent_total:,}원에 "
+                    f"이번 요청 {total_price:,}원을 더하면 {combined:,}원으로, "
+                    f"자동 승인 한도 {auto_limit:,}원을 초과하여 분할 구매가 의심됩니다."
                 ),
                 "facts": {**facts, "recent_category_total": recent_total, "combined_total": combined},
             }
-    return {"decision": "ALLOW", "reason": f"{total_price:,}원, 자동승인 구간(<{auto_limit:,}원)", "facts": facts}
+    return {"decision": "ALLOW", "reason": f"요청 금액 {total_price:,}원이 자동 승인 기준인 {auto_limit:,}원 미만입니다.", "facts": facts}
 
 
 if __name__ == "__main__":
