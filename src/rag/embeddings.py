@@ -51,11 +51,21 @@ class HashingEmbeddingFunction(EmbeddingFunction):
         return [_hash_embed(text) for text in input]
 
 
+_kure_model: SentenceTransformer | None = None
+
+
+def _get_kure_model() -> SentenceTransformer:
+    global _kure_model
+    if _kure_model is None:
+        _kure_model = SentenceTransformer(os.getenv("EMBEDDING_MODEL", "nlpai-lab/KURE-v1"))
+    return _kure_model
+
+
 class KUREEmbeddingFunction(EmbeddingFunction):
     """KURE-v1(한국어 특화 dense encoder) 기반 임베딩 함수. 1단계(Chroma) 검색용, 기본값."""
 
     def __init__(self):
-        self._model = SentenceTransformer(os.getenv("EMBEDDING_MODEL", "nlpai-lab/KURE-v1"))
+        self._model = _get_kure_model()
 
     def __call__(self, input: Documents) -> Embeddings:
         return self._model.encode(list(input), normalize_embeddings=True).tolist()
