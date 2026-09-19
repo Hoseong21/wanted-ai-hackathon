@@ -41,11 +41,12 @@ def product_search(query: str, category: str | None = None, max_price: int | Non
         }
 
     products = _load_products()
-    query_lower = query.lower()
+    query_tokens = [t for t in query.lower().split() if t]
 
     results = []
     for p in products:
-        if query_lower not in p["name"].lower():
+        haystack = f"{p['name']} {p.get('spec', '')}".lower()
+        if query_tokens and not all(t in haystack for t in query_tokens):
             continue
         if category is not None and p["category"] != category:
             continue
