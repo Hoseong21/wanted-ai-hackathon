@@ -32,14 +32,33 @@ def _db_path_from(config: RunnableConfig):
 
 class ProductSearchInput(BaseModel):
     query: str = Field(description="검색할 상품명 또는 키워드 (부분 일치, 대소문자 구분 안 함)")
-    category: Optional[Category] = Field(default=None, description="카테고리 필터. 지정 안 하면 전체 카테고리 검색")
+    category: Optional[Category] = Field(
+        default=None,
+        description=(
+            "카테고리 필터. 상품의 정확한 카테고리를 이미 확실히 알고 있는 경우에만 지정하세요. "
+            "조금이라도 불확실하면 반드시 생략하고 query만으로 검색한 뒤, "
+            "결과에 포함된 category 값으로 실제 분류를 확인하세요."
+        ),
+    )
     max_price: Optional[int] = Field(default=None, description="최대 가격(원) 필터. 지정 안 하면 제한 없음")
 
 
 @tool("product_search", args_schema=ProductSearchInput)
 def product_search_tool(query: str, category: str | None = None, max_price: int | None = None) -> dict:
     """상품명/키워드로 상품 카탈로그를 검색한다. 상품의 가격, 카테고리, 재고 여부를 알고 싶을 때 사용한다."""
-    return _product_search(query, category=category, max_price=max_price)
+    result = _product_search(query, category=category, max_price=max_price)
+
+    # LLM이 category를 잘못 추측해 0건이 나오는 경우를 방어: category만 제거하고 재검색한다.
+    # max_price는 사용자가 실제로 요구한 제약일 수 있으므로 자동으로 풀지 않는다.
+    if result.get("count") == 0 and category is not None:
+        relaxed = _product_search(query, category=None, max_price=max_price)
+        if relaxed.get("count", 0) > 0:
+            relaxed["fallback_applied"] = True
+            relaxed["relaxed_filters"] = ["category"]
+            relaxed["note"] = "category 필터를 제거하고 동일한 가격 조건으로 재검색했습니다."
+            return relaxed
+
+    return result
 
 
 class PolicySearchInput(BaseModel):
