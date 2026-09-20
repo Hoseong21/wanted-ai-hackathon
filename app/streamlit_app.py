@@ -682,19 +682,19 @@ st.markdown(
       font-size:11px; font-weight:500; color:#94a3b8; line-height:1.5; margin-top:10px;
     }
     .afa-loading-bar-track{
+      position:relative;
       width:100%; height:6px; border-radius:999px;
       background:#e2e8f0; overflow:hidden;
     }
     .afa-loading-bar-fill{
-      height:100%; border-radius:999px;
+      position:absolute; top:0; left:0;
+      height:100%; width:30%; border-radius:999px;
       background:#1d4ed8;
-      width:4%;
-      animation:afa-loading-fill 3.2s ease-out forwards;
+      animation:afa-loading-slide 1.1s ease-in-out infinite alternate;
     }
-    @keyframes afa-loading-fill{
-      0%{width:4%;}
-      70%{width:88%;}
-      100%{width:96%;}
+    @keyframes afa-loading-slide{
+      0%{left:0%;}
+      100%{left:70%;}
     }
     </style>
     """,
