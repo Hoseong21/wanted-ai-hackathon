@@ -678,6 +678,9 @@ st.markdown(
       font-size:13.5px; font-weight:700; color:#0f172a;
       margin-bottom:12px;
     }
+    .afa-loading-sub{
+      font-size:11px; font-weight:500; color:#94a3b8; line-height:1.5; margin-top:10px;
+    }
     .afa-loading-bar-track{
       width:100%; height:6px; border-radius:999px;
       background:#e2e8f0; overflow:hidden;
@@ -1300,6 +1303,7 @@ def _render_pending_turn() -> None:
                 <div class="afa-loading-bar-track">
                   <div class="afa-loading-bar-fill"></div>
                 </div>
+                <div class="afa-loading-sub">정책 검증까지 최대 1분 정도 소요될 수 있습니다. 양해 부탁드립니다.</div>
               </div>
             </div>
             """,
@@ -1711,6 +1715,7 @@ if st.session_state.is_running and st.session_state.run_request is not None:
             <div class="afa-loading-bar-track">
               <div class="afa-loading-bar-fill"></div>
             </div>
+            <div class="afa-loading-sub">정책 검증까지 최대 1분 정도 소요될 수 있습니다. 양해 부탁드립니다.</div>
           </div>
         </div>
         """,
