@@ -9,14 +9,17 @@ import os
 
 from sentence_transformers import MultiVectorEncoder
 
+from src.rag.mps_guard import MPS_INFERENCE_LOCK
+
 _MODEL_NAME = os.getenv("RERANK_MODEL", "nlpai-lab/KURE-v2")
 _model: MultiVectorEncoder | None = None
 
 
 def _get_model() -> MultiVectorEncoder:
     global _model
-    if _model is None:
-        _model = MultiVectorEncoder(_MODEL_NAME)
+    with MPS_INFERENCE_LOCK:
+        if _model is None:
+            _model = MultiVectorEncoder(_MODEL_NAME)
     return _model
 
 
@@ -31,9 +34,10 @@ def rerank(query: str, candidates: list[dict], top_k: int = 3) -> list[dict]:
     model = _get_model()
     texts = [c["text"] for c in candidates]
 
-    query_emb = model.encode([query])
-    doc_embs = model.encode(texts)
-    scores = model.similarity(query_emb, doc_embs)[0]
+    with MPS_INFERENCE_LOCK:
+        query_emb = model.encode([query])
+        doc_embs = model.encode(texts)
+        scores = model.similarity(query_emb, doc_embs)[0]
 
     ranked = sorted(zip(candidates, scores), key=lambda pair: float(pair[1]), reverse=True)
 

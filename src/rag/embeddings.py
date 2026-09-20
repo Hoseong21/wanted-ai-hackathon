@@ -14,7 +14,6 @@ KURE-v1을 골랐다 (MTEB-ko-retrieval 벤치마크 기준 한국어 검색 성
 
 .env의 EMBEDDING_BACKEND 값으로 전환: kure(기본) | hash | openai
 """
-
 from __future__ import annotations
 
 import hashlib
@@ -25,6 +24,8 @@ from collections import Counter
 
 from chromadb import Documents, EmbeddingFunction, Embeddings
 from sentence_transformers import SentenceTransformer
+
+from src.rag.mps_guard import MPS_INFERENCE_LOCK
 
 _TOKEN_RE = re.compile(r"[\w가-힣]+")
 _DIM = 256
@@ -54,10 +55,14 @@ class HashingEmbeddingFunction(EmbeddingFunction):
 _kure_model: SentenceTransformer | None = None
 
 
+_kure_model: SentenceTransformer | None = None
+
+
 def _get_kure_model() -> SentenceTransformer:
     global _kure_model
-    if _kure_model is None:
-        _kure_model = SentenceTransformer(os.getenv("EMBEDDING_MODEL", "nlpai-lab/KURE-v1"))
+    with MPS_INFERENCE_LOCK:
+        if _kure_model is None:
+            _kure_model = SentenceTransformer(os.getenv("EMBEDDING_MODEL", "nlpai-lab/KURE-v1"))
     return _kure_model
 
 
@@ -68,7 +73,8 @@ class KUREEmbeddingFunction(EmbeddingFunction):
         self._model = _get_kure_model()
 
     def __call__(self, input: Documents) -> Embeddings:
-        return self._model.encode(list(input), normalize_embeddings=True).tolist()
+        with MPS_INFERENCE_LOCK:
+            return self._model.encode(list(input), normalize_embeddings=True).tolist()
 
 
 def get_embedding_function():
