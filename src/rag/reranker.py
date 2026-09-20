@@ -19,7 +19,8 @@ def _get_model() -> MultiVectorEncoder:
     global _model
     with MPS_INFERENCE_LOCK:
         if _model is None:
-            _model = MultiVectorEncoder(_MODEL_NAME)
+            # embeddings.py와 동일한 이유로 CPU에 고정 (MPS 크래시 근본 회피).
+            _model = MultiVectorEncoder(_MODEL_NAME, device="cpu")
     return _model
 
 

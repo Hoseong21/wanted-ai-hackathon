@@ -55,14 +55,18 @@ class HashingEmbeddingFunction(EmbeddingFunction):
 _kure_model: SentenceTransformer | None = None
 
 
-_kure_model: SentenceTransformer | None = None
-
-
 def _get_kure_model() -> SentenceTransformer:
     global _kure_model
     with MPS_INFERENCE_LOCK:
         if _kure_model is None:
-            _kure_model = SentenceTransformer(os.getenv("EMBEDDING_MODEL", "nlpai-lab/KURE-v1"))
+            # MPS(Metal) 백엔드는 락으로 동시 호출을 막아도 여전히 이 종류의
+            # command-buffer assertion 크래시가 재현됐다 (완전 재시작 후에도
+            # 재현됨 — 스레드 경합 가설로는 설명 안 되는 별도 문제로 판단).
+            # 원인을 더 캐기보다 MPS 자체를 안 쓰도록 CPU에 고정해 이 크래시
+            # 클래스를 근본적으로 회피한다.
+            _kure_model = SentenceTransformer(
+                os.getenv("EMBEDDING_MODEL", "nlpai-lab/KURE-v1"), device="cpu"
+            )
     return _kure_model
 
 
